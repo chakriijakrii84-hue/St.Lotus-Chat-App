@@ -1,22 +1,21 @@
-import os, base64
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'mysecret123'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
+# Folder လမ်းကြောင်းကို အတိအကျ သတ်မှတ်ခြင်း
+base_dir = os.path.abspath(os.path.dirname(__file__))
+template_dir = os.path.join(base_dir, 'templates')
 
-# Folder မရှိရင် ဆောက်မယ်
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
+app = Flask(__name__, template_folder=template_dir)
+app.config['SECRET_KEY'] = 'mysecret123'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(base_dir, 'database.db')
+app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'static/uploads')
 
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-# SocketIO ကို CORS error မတက်အောင် ပြင်ဆင်ထားပါတယ်
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 class User(UserMixin, db.Model):
@@ -41,7 +40,7 @@ def login():
         if user:
             login_user(user)
             return redirect(url_for('index'))
-        flash('ဖုန်းနံပါတ် ရှာမတွေ့ပါ။ အကောင့်အရင်ဖွင့်ပါ။')
+        flash('ဖုန်းနံပါတ် ရှာမတွေ့ပါ။')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -49,9 +48,7 @@ def register():
     if request.method == 'POST':
         phone = request.form.get('phone')
         username = request.form.get('username')
-        if User.query.filter_by(phone=phone).first():
-            flash('ဒီဖုန်းနံပါတ်နဲ့ အကောင့်ရှိပြီးသားပါ။')
-        else:
+        if not User.query.filter_by(phone=phone).first():
             new_user = User(phone=phone, username=username)
             db.session.add(new_user)
             db.session.commit()
